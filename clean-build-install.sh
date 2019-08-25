@@ -15,8 +15,8 @@ echo "Cleaning the hypersign plugin.."
 rm -rf ${KCBASE}/hanko-plugin-keycloak-ejb-0.2-SNAPSHOT.jar
 rm -rf ${KCBASE}/modules/hanko-plugin-keycloak-ejb/
 
-echo "Coping the plugin.."
-cp ./dist/hanko-plugin-keycloak-ejb-0.2-SNAPSHOT.jar ${KCBASE}
+echo "Coping the plugin which contains all the third party jars also..."
+cp ./dist/hanko-plugin-keycloak-ejb-0.2-SNAPSHOT-jar-with-dependencies.jar ${KCBASE}
 
 echo "Dploying the hypersign theme.."
 cp hs-themes/hypersign-config.ftl ${KCBASE}/themes/base/login
