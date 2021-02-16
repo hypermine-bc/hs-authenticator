@@ -79,25 +79,52 @@
             <artifactId>json</artifactId>
             <version>20180130</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/org.codehaus.jackson/jackson-mapper-asl -->
         <dependency>
             <groupId>org.codehaus.jackson</groupId>
             <artifactId>jackson-mapper-asl</artifactId>
             <version>1.5.0</version>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/net.glxn.qrgen/qrgen-parent -->
         <dependency>
             <groupId>net.glxn.qrgen</groupId>
             <artifactId>qrgen-parent</artifactId>
             <version>2.0</version>
             <type>pom</type>
         </dependency>
-        <!-- https://mvnrepository.com/artifact/com.google.zxing/core -->
-        <dependency>
+             <dependency>
             <groupId>com.google.zxing</groupId>
             <artifactId>core</artifactId>
             <version>2.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.powermock</groupId>
+            <artifactId>powermock-module-junit4</artifactId>
+            <version>1.6.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.powermock</groupId>
+            <artifactId>powermock-api-mockito</artifactId>
+            <version>1.6.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>2.4.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt</artifactId>
+            <version>0.9.1</version>
+        </dependency>
+
 
 
     </dependencies>

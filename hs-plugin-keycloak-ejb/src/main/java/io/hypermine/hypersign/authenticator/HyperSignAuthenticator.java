@@ -17,6 +17,8 @@
 
 package io.hypermine.hypersign.authenticator;
 
+import io.hypermine.hypersign.jwt.JWTManager;
+import org.hibernate.id.GUIDGenerator;
 import org.jboss.resteasy.spi.HttpResponse;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
 import org.keycloak.authentication.AuthenticationFlowContext;
@@ -35,6 +37,8 @@ import javax.ws.rs.core.HttpHeaders;
 import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.core.Response;
 import java.net.URI;
+import java.util.UUID;
+
 import org.json.JSONObject;
 
 import io.hypermine.hypersign.service.AuthServerCaller;
@@ -48,7 +52,7 @@ public class HyperSignAuthenticator implements Authenticator {
 
     public static final String CREDENTIAL_TYPE = "hypersign_qrcode";
     private static ServicesLogger logger = ServicesLogger.LOGGER;
-    
+
     protected boolean hasCookie(AuthenticationFlowContext context) {
         Cookie cookie = context.getHttpRequest().getHttpHeaders().getCookies().get("HYPERSIGN_QRCODE_SOLVED");
         boolean result = cookie != null;
@@ -58,7 +62,7 @@ public class HyperSignAuthenticator implements Authenticator {
     /**********************************************************************************
      * This will check if browser has already tried solving the challenge before, if that
      * is the case then it wont again give the same challenge, rather it will bypass it
-     * 
+     *
      * ********************************************************************************/
     @Override
     public void authenticate(AuthenticationFlowContext context) {
@@ -73,38 +77,20 @@ public class HyperSignAuthenticator implements Authenticator {
         logger.info("HyperSignAuthenticator :: authenticate : ends");
     }
 
-    protected Response getChallenge(AuthenticationFlowContext context){
+    protected Response getChallenge(AuthenticationFlowContext context) {
+        int jwtTimeToLive = 0;
+        UUID uuid = UUID.randomUUID();
         logger.info("HyperSignAuthenticator :: getChallenge : starts");
-        String url = getFormattedUrl(context, "session"); // baseUrl + "/auth/realms/"+ relam +"/hypersign/session";
-        // blocking call to get new session
-        System.out.println("************************");
-        System.out.println(context.getUriInfo().getQueryParameters().getFirst("state"));
-        String executionId = context.getUriInfo().getQueryParameters().getFirst("state");
-        String newHSsession = "";
-        String relamName = context.getRealm().getName();
-        Response challenge = null;
-        if(executionId != null && !executionId.isEmpty()){
-            String body = "{\"kcSessionId\":\""+executionId+"\", \"companyId\" : \""+relamName+"\"}";
-            newHSsession = callAPi(url, body);
-            System.out.println("************************");
-            System.out.println(newHSsession);
-            logger.info("HyperSignAuthenticator :: getChallenge : after");
-            String qrJson = "{\"kcSessionId\":\""+executionId+"\", \"companyId\" : \""+relamName+"\", \"hsSessionId\" : \""+newHSsession+"\"}";
-            String hsQr = QRCodeGenerator.createORLoginPage(qrJson);
-            challenge = context.form()
-                            .setAttribute("loginMethod", "UAF")
-                            .setAttribute("hsSession",newHSsession)
-                            .setAttribute("ksSessionId",executionId)
-                            .setAttribute("hsQr",hsQr)
-                            .createForm("hypersign-new.ftl");    
-        }
-        return challenge;
+        String jwtToken = JWTManager.createJWT(jwtTimeToLive, uuid.toString());
+        String hsQr = QRCodeGenerator.createORLoginPage(jwtToken);
+        return context.form().setAttribute("hsQr", hsQr).createForm("hypersign-new.ftl");
+
     }
 
     /**********************************************************************************
      * This is the main method that will get called once user solves the challenge and 
      * click on the submit button.
-     * 
+     *
      * ********************************************************************************/
     @Override
     public void action(AuthenticationFlowContext context) {
@@ -125,72 +111,72 @@ public class HyperSignAuthenticator implements Authenticator {
         logger.info("HyperSignAuthenticator :: action : ends");
     }
 
-    private String callAPi(String url, String body){
-        try{
+    private String callAPi(String url, String body) {
+        try {
             logger.info("HyperSignAuthenticator :: callApi : start");
             logger.info("HyperSignAuthenticator :: callApi : url :");
             logger.info(url);
-            if(body != null && !body.isEmpty()){
+            if (body != null && !body.isEmpty()) {
                 return AuthServerCaller.postApiCall(url, body);
-            }else{
+            } else {
                 return AuthServerCaller.getApiCall(url);
             }
-        }catch(Exception e){
+        } catch (Exception e) {
             logger.error(e);
             return "";
         }
     }
-    
+
     private String getFormattedUrl(AuthenticationFlowContext context, String endpoint) {
-    	String baseUrl = "";
-    	String relam = "";
-    	String url="";    	
-    	if(context != null) {
-    		baseUrl = (context.getUriInfo() !=null && context.getUriInfo().getBaseUri() != null) 
-    				? context.getUriInfo().getBaseUri().toString() 
-    				: "http://localhost:8080/auth/";
-    		relam = (context.getRealm() != null && context.getRealm().getName() != null && !context.getRealm().getName().isEmpty()) 
-    				? context.getRealm().getName() 
-    				: "master";
-    		url = baseUrl + "realms/"+ relam +"/hypersign/" + endpoint;
-    	}
-    	return url;
-     }
+        String baseUrl = "";
+        String relam = "";
+        String url = "";
+        if (context != null) {
+            baseUrl = (context.getUriInfo() != null && context.getUriInfo().getBaseUri() != null)
+                    ? context.getUriInfo().getBaseUri().toString()
+                    : "http://localhost:8080/auth/";
+            relam = (context.getRealm() != null && context.getRealm().getName() != null && !context.getRealm().getName().isEmpty())
+                    ? context.getRealm().getName()
+                    : "master";
+            url = baseUrl + "realms/" + relam + "/hypersign/" + endpoint;
+        }
+        return url;
+    }
 
     private boolean validateUser(AuthenticationFlowContext context) {
-    	Boolean isValid = false;
+        Boolean isValid = false;
         String url = "";
         MultivaluedMap<String, String> formData = null;
         String userIdFromForm = "";
         String sessionId = "";
         try {
-        	logger.info("HyperSignAuthenticator :: validateUser : starts ");
+            logger.info("HyperSignAuthenticator :: validateUser : starts ");
             formData = context.getHttpRequest().getDecodedFormParameters();
-            
+
             sessionId = formData.getFirst("ksSessionId");
             logger.info("HyperSignAuthenticator :: validateUser : sessionId :");
             logger.info(sessionId);
-            
+
             userIdFromForm = formData.getFirst("userId");
             logger.info("HyperSignAuthenticator :: validateUser : userId in form :");
             logger.info(userIdFromForm);
-            
+
             url = getFormattedUrl(context, "listen/success/" + sessionId);
-            
+
             // check if this user is correct from api call;
             // blocking api call
-            String resp = callAPi(url,"");
-            JSONObject json  = new JSONObject(resp);
+            String resp = callAPi(url, "");
+            JSONObject json = new JSONObject(resp);
             String userIdFromAPi = "";
-            if(json != null){
+            if (json != null) {
                 userIdFromAPi = json.getString("data");
                 logger.info("HyperSignAuthenticator :: validateUser : userId in api :");
                 logger.info(userIdFromAPi);
-            }else{
+            } else {
                 logger.info("User authentication failed from hs-auth-server");
             }
-            
-            if(userIdFromAPi !=null && !userIdFromAPi.isEmpty() && userIdFromAPi.equals(userIdFromForm)){
+
+            if (userIdFromAPi != null && !userIdFromAPi.isEmpty() && userIdFromAPi.equals(userIdFromForm)) {
                 logger.info("HyperSignAuthenticator :: validateUser : User is valid");
                 UserCredentialModel input = new UserCredentialModel();
                 // input.setType(SecretQuestionCredentialProvider.QR_CODE);
@@ -202,27 +188,27 @@ public class HyperSignAuthenticator implements Authenticator {
                 setCookie(context);
                 context.success();
                 isValid = true;
-            }else{
+            } else {
                 logger.info("HyperSignAuthenticator :: validateUser : User is not valid");
                 logger.info("HyperSignAuthenticator :: validateUser : Clear session of this user");
                 // clear session in case of failure
                 url = getFormattedUrl(context, "listen/fail/" + sessionId);
-                callAPi(url,"");
+                callAPi(url, "");
                 context.cancelLogin();
-            }            
-        }catch (Exception e) {
+            }
+        } catch (Exception e) {
             logger.error(e.toString());
-			// TODO: handle exception
-		}
+            // TODO: handle exception
+        }
         logger.info("HyperSignAuthenticator :: validateUser : ends ");
         return isValid;
     }
-    
+
     /**********************************************************************************
      * Set the Hypersign cookie for 30 days.
-     * 
+     *
      * ********************************************************************************/
-   
+
     protected void setCookie(AuthenticationFlowContext context) {
         AuthenticatorConfigModel config = context.getAuthenticatorConfig();
         int maxCookieAge = 60 * 60 * 24 * 30; // 30 days
@@ -248,7 +234,7 @@ public class HyperSignAuthenticator implements Authenticator {
 
     /**********************************************************************************
      * We are setting this as false since we dont need the user information as of now.
-     * 
+     *
      * ********************************************************************************/
     @Override
     public boolean requiresUser() {
@@ -257,12 +243,12 @@ public class HyperSignAuthenticator implements Authenticator {
 
     /**********************************************************************************
      * Setting this as false sine we do not want to store any information
-     * 
+     *
      * ********************************************************************************/
     @Override
     public boolean configuredFor(KeycloakSession session, RealmModel realm, UserModel user) {
         //return false;
-    	return session.userCredentialManager().isConfiguredFor(realm, user, HyperSignCredentialProvider.QR_CODE);
+        return session.userCredentialManager().isConfiguredFor(realm, user, HyperSignCredentialProvider.QR_CODE);
     }
 
     @Override
